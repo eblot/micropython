@@ -762,7 +762,7 @@ SPIConfigSetExpClk(unsigned long ulBase,unsigned long ulSPIClk,
   // Enable software control Chip Select, Init delay
   // and 3-pin mode
   //
-  ulRegData |= (((ulConfig >> 24) | ulMode) & 0xFF); 
+  ulRegData |= (((ulConfig >> 24) | ulMode) & 0xFF);
 
   //
   // Write the configuration
@@ -775,21 +775,22 @@ SPIConfigSetExpClk(unsigned long ulBase,unsigned long ulSPIClk,
   if(ulMode == SPI_MODE_MASTER)
   {
     ulRegData = 0x1 << 16;
+
+    //
+    // Get the divider value
+    //
+    ulDivider = ((ulSPIClk/ulBitRate) - 1);
   }
   else
   {
     ulRegData = 0x6 << 16;
+    ulDivider = 0;
   }
 
   //
   // set clock divider granularity to 1 cycle
   //
   ulRegData |= MCSPI_CH0CONF_CLKG;
-
-  //
-  // Get the divider value
-  //
-  ulDivider = ((ulSPIClk/ulBitRate) - 1);
 
   //
   // The least significant four bits of the divider is used to configure
