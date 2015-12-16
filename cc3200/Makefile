@@ -14,7 +14,7 @@ BUILD ?= build/$(BOARD)/$(BTYPE)
 include ../py/mkenv.mk
 -include ../../localconfig.mk
 
-CROSS_COMPILE ?= arm-none-eabi-
+CROSS_COMPILE ?= arm-eabi-
 
 CFLAGS_CORTEX_M4 = -mthumb -mtune=cortex-m4 -march=armv7e-m -mabi=aapcs -mcpu=cortex-m4 -msoft-float -mfloat-abi=soft -fsingle-precision-constant -Wdouble-promotion
 CFLAGS = -Wall -Wpointer-arith -Werror -ansi -std=gnu99 -nostdlib $(CFLAGS_CORTEX_M4)
