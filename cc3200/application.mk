@@ -101,6 +101,7 @@ APP_MODS_SRC_C = $(addprefix mods/,\
 	pybsd.c \
 	pybsleep.c \
 	pybspi.c \
+	pybspislave.c \
 	pybtimer.c \
 	pybuart.c \
 	pybwdt.c \
@@ -120,12 +121,12 @@ APP_CC3100_SRC_C = $(addprefix drivers/cc3100/src/,\
 APP_SL_SRC_C = $(addprefix simplelink/,\
 	oslib/osi_freertos.c \
 	cc_pal.c \
-	) 
+	)
 
 APP_TELNET_SRC_C = $(addprefix telnet/,\
 	telnet.c \
 	)
-	
+
 APP_UTIL_SRC_C = $(addprefix util/,\
 	cryptohash.c \
 	fifo.c \
@@ -133,17 +134,17 @@ APP_UTIL_SRC_C = $(addprefix util/,\
 	random.c \
 	socketfifo.c \
 	)
-	
+
 APP_UTIL_SRC_S = $(addprefix util/,\
 	gchelper.s \
 	sleeprestore.s \
 	)
-	
+
 APP_MAIN_SRC_C = \
 	main.c \
 	mptask.c \
 	serverstask.c
-	
+
 APP_LIB_SRC_C = $(addprefix lib/,\
 	fatfs/ff.c \
 	fatfs/option/ccsbcs.c \
@@ -154,7 +155,7 @@ APP_LIB_SRC_C = $(addprefix lib/,\
 	utils/pyexec.c \
 	utils/printf.c \
 	)
-	
+
 APP_STM_SRC_C = $(addprefix stmhal/,\
 	bufhelper.c \
 	file.c \

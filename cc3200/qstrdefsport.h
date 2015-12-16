@@ -335,6 +335,7 @@ Q(wake)
 
 // for SPI class
 Q(SPI)
+Q(SPISlave)
 Q(id)
 Q(mode)
 Q(baudrate)
@@ -392,4 +393,3 @@ Q(hexlify)
 Q(unhexlify)
 Q(a2b_base64)
 Q(b2a_base64)
-
