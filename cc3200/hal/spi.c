@@ -774,6 +774,7 @@ SPIConfigSetExpClk(unsigned long ulBase,unsigned long ulSPIClk,
   //
   if(ulMode == SPI_MODE_MASTER)
   {
+    // SPIDAT[0] for reception, SPIDAT[1] for transmission
     ulRegData = 0x1 << 16;
 
     //
@@ -783,6 +784,7 @@ SPIConfigSetExpClk(unsigned long ulBase,unsigned long ulSPIClk,
   }
   else
   {
+    // SPIDAT[1] for reception, SPIDAT[0] for transmission
     ulRegData = 0x6 << 16;
     ulDivider = 0;
   }

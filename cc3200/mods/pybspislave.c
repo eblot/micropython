@@ -179,7 +179,7 @@ STATIC mp_obj_t pyb_spislave_init_helper(pyb_spislave_obj_t *self, const mp_arg_
 
     // build the configuration
     self->wlen = args[0].u_int >> 3;
-    self->config = bits | SPI_CS_ACTIVELOW | SPI_SW_CTRL_CS | SPI_4PIN_MODE | SPI_TURBO_OFF;
+    self->config = bits | SPI_CS_ACTIVELOW | SPI_4PIN_MODE | SPI_TURBO_OFF;
     self->polarity = polarity;
     self->phase = phase;
     self->submode = (polarity << 1) | phase;
@@ -217,6 +217,7 @@ static const mp_arg_t pyb_spislave_init_args[] = {
     { MP_QSTR_firstbit,     MP_ARG_KW_ONLY  | MP_ARG_INT,  {.u_int = PYBSPI_FIRST_BIT_MSB} },
     { MP_QSTR_pins,         MP_ARG_KW_ONLY  | MP_ARG_OBJ,  {.u_obj = MP_OBJ_NULL} },
 };
+
 STATIC mp_obj_t pyb_spislave_make_new(mp_obj_t type_in, mp_uint_t n_args, mp_uint_t n_kw, const mp_obj_t *all_args) {
     // parse args
     mp_map_t kw_args;
