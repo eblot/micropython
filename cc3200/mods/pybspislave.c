@@ -54,23 +54,22 @@
 typedef struct _pyb_spislave_obj_t {
     mp_obj_base_t base;
     uint config;
-    byte polarity;
-    byte phase;
     byte submode;
-    byte wlen;
 } pyb_spislave_obj_t;
 
 /******************************************************************************
  DEFINE CONSTANTS
  ******************************************************************************/
 #define PYBSPI_FIRST_BIT_MSB                    0
+#define SPI_FIFO_SIZE                          64 // may be shared on TX+RX
 
 /******************************************************************************
  DECLARE PRIVATE DATA
  ******************************************************************************/
 STATIC pyb_spislave_obj_t pyb_spislave_obj;
 
-STATIC const mp_obj_t pyb_spislave_def_pin[3] = {&pin_GP14, &pin_GP16, &pin_GP30};
+STATIC const mp_obj_t pyb_spislave_def_pin[4] = 
+    {&pin_GP14, &pin_GP16, &pin_GP30, &pin_GP17};
 
 /******************************************************************************
  DEFINE PRIVATE FUNCTIONS
@@ -88,54 +87,39 @@ STATIC void pyb_spihw_init (const pyb_spislave_obj_t *self) {
 
     // enable the interface
     MAP_SPIEnable(GSPI_BASE);
+
+    // enable the RX FIFO
+    MAP_SPIFIFOEnable(GSPI_BASE, SPI_RX_FIFO);
 }
 
 STATIC void pyb_spihw_tx (pyb_spislave_obj_t *self, const void *data) {
     uint32_t txdata;
-    switch (self->wlen) {
-    case 1:
-        txdata = (uint8_t)(*(char *)data);
-        break;
-    case 2:
-        txdata = (uint16_t)(*(uint16_t *)data);
-        break;
-    case 4:
-        txdata = (uint32_t)(*(uint32_t *)data);
-        break;
-    default:
-        return;
-    }
+    txdata = (uint8_t)(*(char *)data);
     MAP_SPIDataPut (GSPI_BASE, txdata);
 }
 
 STATIC void pyb_spihw_rx (pyb_spislave_obj_t *self, void *data) {
     uint32_t rxdata;
     MAP_SPIDataGet (GSPI_BASE, &rxdata);
-    if (data) {
-        switch (self->wlen) {
-        case 1:
-            *(char *)data = rxdata;
-            break;
-        case 2:
-            *(uint16_t *)data = rxdata;
-            break;
-        case 4:
-            *(uint32_t *)data = rxdata;
-            break;
-        default:
-            return;
-        }
+    *(char *)data = rxdata;
+}
+
+STATIC void pyb_spihw_drain (pyb_spislave_obj_t *self, uint32_t *count) {
+    uint32_t rxdata;
+    uint32_t c = 0;
+    while ( MAP_SPIDataGetNonBlocking(GSPI_BASE, &rxdata) ) {
+        (void)rxdata;
+        c += 1;
     }
+    *count = c;
 }
 
 STATIC void pyb_spihw_transfer (pyb_spislave_obj_t *self, const char *txdata, char *rxdata, uint32_t len, uint32_t *txchar) {
     // send and receive the data
-    MAP_SPICSEnable(GSPI_BASE);
-    for (int i = 0; i < len; i += self->wlen) {
+    for (int i = 0; i < len; i+=1) {
         pyb_spihw_tx(self, txdata ? (const void *)&txdata[i] : txchar);
         pyb_spihw_rx(self, rxdata ? (void *)&rxdata[i] : NULL);
     }
-    MAP_SPICSDisable(GSPI_BASE);
 }
 
 /******************************************************************************/
@@ -143,58 +127,33 @@ STATIC void pyb_spihw_transfer (pyb_spislave_obj_t *self, const char *txdata, ch
 /******************************************************************************/
 STATIC void pyb_spislave_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
     pyb_spislave_obj_t *self = self_in;
-    mp_printf(print, "SPI(0, SPI.SLAVE, bits=%u, polarity=%u, phase=%u, firstbit=SPI.MSB)",
-              (self->wlen * 8), self->polarity, self->phase);
+    mp_printf(print, "SPI(0, SPI.SLAVE, polarity=%u, phase=%u, firstbit=SPI.MSB)",
+              (self->submode >> 1) & 0x1, self->submode & 0x1);
 }
 
 // (mode, baudrate=1000000, *, polarity=0, phase=0, bits=8, firstbit=SPI.MSB, pins=(CLK, MOSI, MISO)
 STATIC mp_obj_t pyb_spislave_init_helper(pyb_spislave_obj_t *self, const mp_arg_val_t *args) {
-    uint bits;
-    // mode
-    switch (args[0].u_int) {
-    case 8:
-        bits = SPI_WL_8;
-        break;
-    case 16:
-        bits = SPI_WL_16;
-        break;
-    case 32:
-        bits = SPI_WL_32;
-        break;
-    default:
-        goto invalid_args;
-        break;
-    }
-
-    uint polarity = args[1].u_int;
-    uint phase = args[2].u_int;
+    uint polarity = args[0].u_int;
+    uint phase = args[1].u_int;
     if (polarity > 1 || phase > 1) {
         goto invalid_args;
     }
 
-    uint firstbit = args[3].u_int;
-    if (firstbit != PYBSPI_FIRST_BIT_MSB) {
-        goto invalid_args;
-    }
-
     // build the configuration
-    self->wlen = args[0].u_int >> 3;
-    self->config = bits | SPI_CS_ACTIVELOW | SPI_4PIN_MODE | SPI_TURBO_OFF;
-    self->polarity = polarity;
-    self->phase = phase;
+    self->config = SPI_WL_8 | SPI_CS_ACTIVELOW | SPI_4PIN_MODE | SPI_TURBO_OFF;
     self->submode = (polarity << 1) | phase;
 
     // assign the pins
-    mp_obj_t pins_o = args[4].u_obj;
+    mp_obj_t pins_o = args[2].u_obj;
     if (pins_o != mp_const_none) {
         mp_obj_t *pins;
         if (pins_o == MP_OBJ_NULL) {
             // use the default pins
             pins = (mp_obj_t *)pyb_spislave_def_pin;
         } else {
-            mp_obj_get_array_fixed_n(pins_o, 3, &pins);
+            mp_obj_get_array_fixed_n(pins_o, 4, &pins);
         }
-        pin_assign_pins_af (pins, 3, PIN_TYPE_STD_PU, PIN_FN_SPI, 0);
+        pin_assign_pins_af (pins, 4, PIN_TYPE_STD_PU, PIN_FN_SPI, 0);
     }
 
     // init the bus
@@ -211,10 +170,8 @@ invalid_args:
 
 static const mp_arg_t pyb_spislave_init_args[] = {
     { MP_QSTR_id,                             MP_ARG_INT,  {.u_int = 0} },
-    { MP_QSTR_bits,         MP_ARG_KW_ONLY  | MP_ARG_INT,  {.u_int = 8} },
     { MP_QSTR_polarity,     MP_ARG_KW_ONLY  | MP_ARG_INT,  {.u_int = 0} },
     { MP_QSTR_phase,        MP_ARG_KW_ONLY  | MP_ARG_INT,  {.u_int = 0} },
-    { MP_QSTR_firstbit,     MP_ARG_KW_ONLY  | MP_ARG_INT,  {.u_int = PYBSPI_FIRST_BIT_MSB} },
     { MP_QSTR_pins,         MP_ARG_KW_ONLY  | MP_ARG_OBJ,  {.u_obj = MP_OBJ_NULL} },
 };
 
@@ -279,28 +236,50 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_2(pyb_spislave_write_obj, pyb_spislave_write);
 
 STATIC mp_obj_t pyb_spislave_read(mp_uint_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
     static const mp_arg_t allowed_args[] = {
-        { MP_QSTR_nbytes,    MP_ARG_REQUIRED | MP_ARG_OBJ, },
-        { MP_QSTR_write,     MP_ARG_KW_ONLY  | MP_ARG_INT, {.u_int = 0x00} },
+        { MP_QSTR_nbytes,    MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
     };
 
     // parse args
     pyb_spislave_obj_t *self = pos_args[0];
+    (void)self;
     mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
     mp_arg_parse_all(n_args - 1, pos_args + 1, kw_args, MP_ARRAY_SIZE(args), allowed_args, args);
 
     // get the buffer to receive into
+    // if no size is specified, read up to the maximum RX FIFO size
     vstr_t vstr;
-    pyb_buf_get_for_recv(args[0].u_obj, &vstr);
+    mp_obj_t cnt;
+    if ( MP_OBJ_NULL != args[0].u_obj ) {
+        cnt = args[0].u_obj;
+    } else {
+        cnt = mp_obj_new_int(SPI_FIFO_SIZE);
+    }
 
-    // just receive
-    uint32_t write = args[1].u_int;
-    pyb_spihw_transfer(self, NULL, vstr.buf, vstr.len, &write);
+    pyb_buf_get_for_recv(cnt, &vstr);
+
+    unsigned int ix;
+    for (ix=0; ix<vstr.len; ix++) {
+        uint32_t rxdata; 
+        if ( ix ) {
+            if ( ! MAP_SPIDataGetNonBlocking(GSPI_BASE, &rxdata) ) {
+                break;
+            }
+        }
+        else {
+            MAP_SPIDataGet(GSPI_BASE, &rxdata);
+        }
+        vstr.buf[ix] = (uint8_t)rxdata;   
+    }
+
+    // adjust actual length
+    vstr.len = ix;
 
     // return the received data
     return mp_obj_new_str_from_vstr(&mp_type_bytes, &vstr);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_KW(pyb_spislave_read_obj, 1, pyb_spislave_read);
 
+#if 0
 STATIC mp_obj_t pyb_spislave_readinto(mp_uint_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
     static const mp_arg_t allowed_args[] = {
         { MP_QSTR_buf,       MP_ARG_REQUIRED | MP_ARG_OBJ, },
@@ -353,6 +332,18 @@ STATIC mp_obj_t pyb_spislave_write_readinto (mp_obj_t self, mp_obj_t writebuf, m
     return mp_obj_new_int(bufinfo_write.len);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_3(pyb_spislave_write_readinto_obj, pyb_spislave_write_readinto);
+#endif
+
+STATIC mp_obj_t pyb_spislave_drain(mp_obj_t self_in) {
+    // parse args
+    pyb_spislave_obj_t *self = (pyb_spislave_obj_t *)self_in;
+    uint32_t count;
+    pyb_spihw_drain(self, &count);
+
+    // return the number of bytes received
+    return mp_obj_new_int(count);
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_1(pyb_spislave_drain_obj, pyb_spislave_drain);
 
 STATIC const mp_map_elem_t pyb_spislave_locals_dict_table[] = {
     // instance methods
@@ -360,9 +351,11 @@ STATIC const mp_map_elem_t pyb_spislave_locals_dict_table[] = {
     { MP_OBJ_NEW_QSTR(MP_QSTR_deinit),              (mp_obj_t)&pyb_spislave_deinit_obj },
     { MP_OBJ_NEW_QSTR(MP_QSTR_write),               (mp_obj_t)&pyb_spislave_write_obj },
     { MP_OBJ_NEW_QSTR(MP_QSTR_read),                (mp_obj_t)&pyb_spislave_read_obj },
+    { MP_OBJ_NEW_QSTR(MP_QSTR_drain),               (mp_obj_t)&pyb_spislave_drain_obj },
+    #if 0
     { MP_OBJ_NEW_QSTR(MP_QSTR_readinto),            (mp_obj_t)&pyb_spislave_readinto_obj },
     { MP_OBJ_NEW_QSTR(MP_QSTR_write_readinto),      (mp_obj_t)&pyb_spislave_write_readinto_obj },
-
+    #endif
     // class constants
     { MP_OBJ_NEW_QSTR(MP_QSTR_MSB),                MP_OBJ_NEW_SMALL_INT(PYBSPI_FIRST_BIT_MSB) },
 };

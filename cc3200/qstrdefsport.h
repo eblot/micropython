@@ -351,6 +351,7 @@ Q(readinto)
 Q(write_readinto)
 Q(nbytes)
 Q(buf)
+Q(drain)
 Q(MASTER)
 Q(MSB)
 
