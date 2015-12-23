@@ -279,15 +279,12 @@ STATIC mp_obj_t pyb_spislave_read(mp_uint_t n_args, const mp_obj_t *pos_args, mp
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_KW(pyb_spislave_read_obj, 1, pyb_spislave_read);
 
-#if 0
 STATIC mp_obj_t pyb_spislave_readinto(mp_uint_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
     static const mp_arg_t allowed_args[] = {
         { MP_QSTR_buf,       MP_ARG_REQUIRED | MP_ARG_OBJ, },
-        { MP_QSTR_write,     MP_ARG_KW_ONLY  | MP_ARG_INT, {.u_int = 0x00} },
     };
 
     // parse args
-    pyb_spislave_obj_t *self = pos_args[0];
     mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
     mp_arg_parse_all(n_args - 1, pos_args + 1, kw_args, MP_ARRAY_SIZE(args), allowed_args, args);
 
@@ -295,15 +292,21 @@ STATIC mp_obj_t pyb_spislave_readinto(mp_uint_t n_args, const mp_obj_t *pos_args
     vstr_t vstr;
     pyb_buf_get_for_recv(args[0].u_obj, &vstr);
 
-    // just receive
-    uint32_t write = args[1].u_int;
-    pyb_spihw_transfer(self, NULL, vstr.buf, vstr.len, &write);
+    unsigned int ix;
+    for (ix=0; ix<vstr.len; ix++) {
+        uint32_t rxdata;
+        if ( ! MAP_SPIDataGetNonBlocking(GSPI_BASE, &rxdata) ) {
+            break;
+        }
+        vstr.buf[ix] = (uint8_t)rxdata;   
+    }
 
     // return the number of bytes received
-    return mp_obj_new_int(vstr.len);
+    return mp_obj_new_int(ix);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_KW(pyb_spislave_readinto_obj, 1, pyb_spislave_readinto);
 
+#if 0
 STATIC mp_obj_t pyb_spislave_write_readinto (mp_obj_t self, mp_obj_t writebuf, mp_obj_t readbuf) {
     // get buffers to write from/read to
     mp_buffer_info_t bufinfo_write;
@@ -352,8 +355,8 @@ STATIC const mp_map_elem_t pyb_spislave_locals_dict_table[] = {
     { MP_OBJ_NEW_QSTR(MP_QSTR_write),               (mp_obj_t)&pyb_spislave_write_obj },
     { MP_OBJ_NEW_QSTR(MP_QSTR_read),                (mp_obj_t)&pyb_spislave_read_obj },
     { MP_OBJ_NEW_QSTR(MP_QSTR_drain),               (mp_obj_t)&pyb_spislave_drain_obj },
-    #if 0
     { MP_OBJ_NEW_QSTR(MP_QSTR_readinto),            (mp_obj_t)&pyb_spislave_readinto_obj },
+    #if 0
     { MP_OBJ_NEW_QSTR(MP_QSTR_write_readinto),      (mp_obj_t)&pyb_spislave_write_readinto_obj },
     #endif
     // class constants
