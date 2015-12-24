@@ -994,6 +994,10 @@
                    unsigned long ulSize,                                      \
                    unsigned long ulFlags))ROM_SPITABLE[23])
 #endif
+//#if defined(TARGET_IS_CC3200)
+//#define ROM_SPIDataIsAvailable
+//        ((long (*)(unsigned long ulBase))ROM_SPITABLE[24])
+//#endif
 
 //*****************************************************************************
 //

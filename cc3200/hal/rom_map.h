@@ -1415,6 +1415,13 @@
 #define MAP_SPITransfer \
         SPITransfer
 #endif
+//#ifdef ROM_SPIDataIsAvailable
+//#define MAP_SPIDataIsAvailable
+//        ROM_SPIDataIsAvailable
+//#else
+//#define MAP_SPIDataIsAvailable
+//        SPIDataIsAvailable
+//#endif
 
 //*****************************************************************************
 //

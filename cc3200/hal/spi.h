@@ -123,6 +123,7 @@ extern void SPIReset(unsigned long ulBase);
 extern void SPIConfigSetExpClk(unsigned long ulBase,unsigned long ulSPIClk,
             unsigned long ulBitRate, unsigned long ulMode,
             unsigned long ulSubMode, unsigned long ulConfig);
+extern long SPIDataIsAvailable(unsigned long ulBase);
 extern long SPIDataGetNonBlocking(unsigned long ulBase,
                                         unsigned long * pulData);
 extern void SPIDataGet(unsigned long ulBase, unsigned long *pulData);

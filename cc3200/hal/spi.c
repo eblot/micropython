@@ -1516,6 +1516,32 @@ long SPITransfer(unsigned long ulBase, unsigned char *ucDout,
   return lRet;
 
 }
+
+//*****************************************************************************
+//
+//! Check if a word can be read out from the specified port.
+//!
+//! \param ulBase is the base address of the SPI module.
+//!
+//! \return 1 if at least a word is available in the RX register
+//
+//*****************************************************************************
+long
+SPIDataIsAvailable(unsigned long ulBase)
+{
+  unsigned long ulRegVal;
+
+  //
+  // Read register status register
+  //
+  ulRegVal = HWREG(ulBase + MCSPI_O_CH0STAT);
+
+  //
+  // Check is data is available
+  //
+  return !!(ulRegVal & MCSPI_CH0STAT_RXS);
+}
+
 //*****************************************************************************
 //
 // Close the Doxygen group.
